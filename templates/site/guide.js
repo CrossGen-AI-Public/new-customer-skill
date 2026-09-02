@@ -16,7 +16,7 @@ You help a visitor figure out (1) which Kind loan programs could fit, (2) roughl
 Programs Kind offers: Conventional, FHA, VA, Jumbo, USDA, Non-QM (bank statement, DSCR), plus National DPA, GSFA, CalHFA, buydowns, HECM reverse, FHA 203(k).
 RULES:
 - NEVER state a dollar figure, rate, DTI, or program fit from memory. Only report numbers returned by your tools. If you do not have a tool result yet, ask for the missing input instead.
-- Required inputs, ask for whichever is missing, one at a time: purchase price (or "not sure" for affordability), down payment (dollars or percent), credit score (a range is fine), annual household income. Optional: monthly debt payments, veteran, self-employed, investment property. Never ask for optional inputs before calling a tool; call match_programs as soon as the four required inputs exist, then mention afterwards that VA (veterans) or Non-QM (self-employed, investors) could change the picture if that applies. Parse sensibly: "10%" is percent of price; "800k" is 800000; "$9,000 a month" is 108000 a year.
+- Collect, in this order if missing: purchase price (or say "not sure" to get affordability), down payment (dollars or percent), credit score (a range is fine), annual household income, monthly debt payments (cars, cards, student loans), and whether they are a veteran, self-employed, or buying an investment property. Use sensible parsing: "10%" means percent of price; "800k" means 800000.
 - As soon as you have price, down payment, credit score and income, call match_programs. If they do not know a price, call affordability first.
 - After a tool result, summarize in plain words: the top one or two fitting programs, the estimated total monthly payment, and one reason. Then offer the next step: talk to a loan officer, or adjust a number.
 - Always call every figure an estimate. Never say approved, pre-approved, qualified, or guaranteed. You cannot lock a rate or pull credit. A licensed Kind loan officer makes every decision.
@@ -41,17 +41,26 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
   // ---------- DOM ----------
   const $ = (s, r = document) => r.querySelector(s);
   let chatEl, inputEl, sendEl, quickEl;
+  // Keep the newest message in view. Any change inside the pane (new bubble, streamed text, a card
+  // growing) pins the scroll to the bottom on the next frame. Instant, not smooth: a smooth scroll
+  // that is still in flight swallows the next request, which is how messages ended up out of view.
+  let pinRaf = 0, observer = null;
+  function pinToEnd() { if (!chatEl) return; cancelAnimationFrame(pinRaf); pinRaf = requestAnimationFrame(() => { chatEl.scrollTop = chatEl.scrollHeight; }); }
   function bind() {
     chatEl = $("#chat"); inputEl = $("#chatIn"); sendEl = $("#chatSend"); quickEl = $("#quick");
     if (!chatEl) return;
+    chatEl.style.scrollBehavior = "auto";
+    if (observer) observer.disconnect();
+    observer = new MutationObserver(pinToEnd); observer.observe(chatEl, { childList: true, subtree: true, characterData: true });
+    inputEl.addEventListener("focus", () => setTimeout(pinToEnd, 250));
     sendEl.onclick = () => send(inputEl.value);
     inputEl.onkeydown = (e) => { if (e.key === "Enter") send(inputEl.value); };
     quickEl.onclick = (e) => { const b = e.target.closest("button"); if (b) send(b.dataset.say || b.textContent); };
     start();
   }
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  function bubble(kind, text) { const d = document.createElement("div"); d.className = "msg " + kind; d.textContent = text; chatEl.appendChild(d); chatEl.scrollTop = chatEl.scrollHeight; return d; }
-  function addCard(html) { const d = document.createElement("div"); d.innerHTML = html; while (d.firstChild) chatEl.appendChild(d.firstChild); chatEl.scrollTop = chatEl.scrollHeight; }
+  function bubble(kind, text) { const d = document.createElement("div"); d.className = "msg " + kind; d.textContent = text; chatEl.appendChild(d); pinToEnd(); return d; }
+  function addCard(html) { const d = document.createElement("div"); d.innerHTML = html; while (d.firstChild) chatEl.appendChild(d.firstChild); pinToEnd(); }
   function renderCards(r) {
     state.lastResult = r;
     const top = r.programs.slice(0, 3);
@@ -76,7 +85,7 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
   }
   function setBadge() {
     const el = document.querySelector("#guidePhone .who small"); if (!el) return;
-    const b = state.backend || {}; const name = b.backend === "openai-compatible" ? (b.model || "").split("/").pop().replace(/-FP8$/, "") : b.model || "Claude"; el.textContent = state.mode === "artifact" ? "Live on Claude · estimates only" : state.mode === "api" ? `Live on ${b.backend === "openai-compatible" ? "CrossGen AI (" + name + ")" : "Claude"} · estimates only` : "Guided form, no AI connected · estimates only";
+    el.textContent = state.mode === "artifact" ? "Live on Claude · estimates only" : state.mode === "api" ? `Live on Claude (${(state.backend || {}).model || "API"}) · estimates only` : "Guided form, no AI connected · estimates only";
     const dot = document.querySelector("#guidePhone .dot"); if (dot) dot.style.background = state.mode === "form" ? "#f0a500" : "#34c76a";
   }
 
@@ -101,7 +110,7 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
       let reply = "";
       if (state.mode === "artifact") {
         const input = [{ role: "user", content: SYSTEM() + "\n\n(Conversation begins. Greet only once; the greeting already happened.)" }, { role: "assistant", content: "Understood." }, ...state.turns];
-        const res = await state.sample(input, { tools, cache: false, modelTier: "default", onText: ({ text }) => { ai.textContent = text; chatEl.scrollTop = chatEl.scrollHeight; } });
+        const res = await state.sample(input, { tools, cache: false, modelTier: "default", onText: ({ text }) => { ai.textContent = text; pinToEnd(); } });
         reply = res.text || ai.textContent;
       } else {
         const res = await fetch(state.api + "/api/guide", { method: "POST", mode: "cors", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: state.turns }) });
@@ -111,7 +120,7 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
         reply = j.text || "";
         if (!reply && (j.toolResults || []).length) reply = "Here's what I found.";
       }
-      ai.textContent = reply; chatEl.appendChild(ai); chatEl.scrollTop = chatEl.scrollHeight;
+      ai.textContent = reply; chatEl.appendChild(ai); pinToEnd();
       state.turns.push({ role: "assistant", content: reply });
       if (state.turns.length > 24) state.turns = state.turns.slice(-24);
       if (state.lastResult && !/loan officer|handoff/i.test(reply)) setQuick(["Talk to a loan officer", "What if I put 20% down?", "Show me FHA vs conventional"]);
