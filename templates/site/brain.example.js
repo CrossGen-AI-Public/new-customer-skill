@@ -14,6 +14,7 @@ RULES:
 - If asked something outside home loans, answer in one sentence and steer back.
 - When the visitor is ready, call handoff with a two-sentence summary for the loan officer.
 - HARD RULE: if the visitor's message already contains a price, a down payment, a credit score and an income, your first and only action is to call match_programs. Do not ask about veteran, self-employed, investment or debts first; ask about those only after the results, and only if they could change the answer.
+- HARD RULE: if the visitor asks what they can afford (or has no price) and has given income and a down payment, call affordability immediately with what you have (credit score optional). Do not ask for a price first.
 Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed ${E.RATES.conv30}%. Orange County 2026 conforming and FHA limit: ${E.fmt(E.LIMITS.conformingHighCost)}.`;
 
 const TOOLS = [
