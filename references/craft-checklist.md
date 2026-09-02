@@ -51,6 +51,8 @@ Apply these to the prospect's own brand. None of them are a look; all of them ar
 11. Footer: five columns, every external portal, the full legal line, the industry seal.
 
 ## The gate
+- `scripts/sweep.sh dist/index.html "<routes>"` runs every route at 320 to 1300 inside an iframe (Chrome's own floor is 500px) and fails on any horizontal overflow. Zero is the bar; Kind needed grid minimums capped at the container, buttons allowed to wrap under 420px, mega menus capped at the viewport and right-aligned near the edge, and `overflow-x: clip` on html as well as body (iOS ignores body-only).
+- `scripts/chat-drive.js` types two real questions into the deployed page over CDP and screenshots the answers. Read them: the engine must have been called and the reply must be plain text with the engine's numbers.
 - `slop_scan.py` from site-spike, fix or record exceptions.
 - Swap test, hand test, source test, read-aloud test (site-spike Step 4).
 - Two bugs that bit the Kind build: a class name reused for two things (`.rev`), and a module declared with `const` that never reached `window`. Grep for both.

@@ -1,11 +1,11 @@
-// Kind Guide. Claude talks; KIND_ENGINE does the math. Three modes, picked at load:
+// Kind Guide. A real model talks; KIND_ENGINE does the math. Two modes, picked at load:
 //   1. artifact  — claude.ai `sample` capability, tools run in the page
-//   2. api       — POST /api/guide on the hosting server (server.js), tools run on the server
-//   3. form      — guided six-question form using the same engine, when neither is available
+//   2. api       — POST /api/guide on the hosting server (server.js) or the public endpoint; tools run on the server
+// There is no scripted fallback. If no model is reachable the assistant says it is offline and points at a person.
 (() => {
   const E = KIND_ENGINE;
   const fmt = E.fmt;
-  const state = { turns: [], profile: {}, mode: "form", sample: null, busy: false, lastResult: null, api: "" };
+  const state = { turns: [], profile: {}, mode: "offline", sample: null, busy: false, lastResult: null, api: "" };
   // Where the chat server lives. Same origin when served by server.js; a public endpoint otherwise
   // (set window.KIND_GUIDE_API before this script, or a <meta name="kind-guide-api">).
   const API_BASE = () => (window.KIND_GUIDE_API || (document.querySelector('meta[name="kind-guide-api"]') || {}).content || "").replace(/\/$/, "");
@@ -85,12 +85,12 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
     try { if (window.claude) { state.sample = await claude.use("sample"); if (state.sample) return "artifact"; } } catch { }
     // 2. a server: same origin first (server.js), then the public endpoint
     for (const base of [...new Set(["", API_BASE()])]) { const j = await probe(base); if (j) { state.api = base; state.backend = j; return "api"; } }
-    return "form";
+    return "offline";
   }
   function setBadge() {
     const el = document.querySelector("#guidePhone .who small"); if (!el) return;
-    const b = state.backend || {}; const name = b.backend === "openai-compatible" ? (b.model || "").split("/").pop().replace(/-FP8$/, "") : b.model || "Claude"; el.textContent = state.mode === "form" ? "Guided form, no AI connected · estimates only" : "AI assistant · estimates only";
-    const dot = document.querySelector("#guidePhone .dot"); if (dot) dot.style.background = state.mode === "form" ? "#f0a500" : "#34c76a";
+    const b = state.backend || {}; const name = b.backend === "openai-compatible" ? (b.model || "").split("/").pop().replace(/-FP8$/, "") : b.model || "Claude"; el.textContent = state.mode === "offline" ? "Assistant offline" : "AI assistant · estimates only";
+    const dot = document.querySelector("#guidePhone .dot"); if (dot) dot.style.background = state.mode === "offline" ? "#c33" : "#34c76a";
   }
 
   async function start() {
@@ -98,7 +98,7 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
     chatEl.innerHTML = "";
     bubble("sys", "Kind Guide is an AI assistant. Estimates only, not an offer. A licensed loan officer reviews everything.");
     state.mode = await detectMode(); setBadge();
-    if (state.mode === "form") { bubble("sys", "No AI model is reachable from this copy of the page, so this is the guided form: the same calculator, scripted questions. The live version at the CrossGen or claude.ai link talks to Claude."); return formMode(); }
+    if (state.mode === "offline") { offline(); return; }
     bubble("ai", "Hi, I'm Kind Guide. Tell me a little about the home you have in mind and I'll show you which Kind loans could fit and what it might cost each month. Do you have a price in mind, or would you rather find out what you could afford?");
     setQuick(["I'm looking at a $1.1M house in Irvine", "Not sure, what can I afford?", "I'm a veteran", "I'm self-employed"]);
   }
@@ -106,7 +106,7 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
   async function send(text) {
     text = (text || "").trim(); if (!text || state.busy) return;
     inputEl.value = ""; bubble("me", text); quickEl.innerHTML = "";
-    if (state.mode === "form") return formAnswer(text);
+    if (state.mode === "offline") { offline(); return; }
     state.turns.push({ role: "user", content: text });
     state.busy = true; sendEl.disabled = true;
     const ai = bubble("ai", ""); ai.innerHTML = '<span class="typing"><i></i><i></i><i></i></span>';
@@ -131,41 +131,17 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
     } catch (err) {
       state.turns.pop();
       ai.textContent = err && err.text ? err.text : "I hit a snag reaching the model. Try again in a moment, or call (714) 844-1000.";
-      if (err && err.code === "not_granted") { state.mode = "form"; setBadge(); bubble("sys", "Claude access was not granted for this page, so this is now the guided form."); formMode(); }
+      if (err && err.code === "not_granted") { state.sample = null; state.mode = await detectMode(); setBadge(); if (state.mode === "offline") offline(); }
     } finally { state.busy = false; sendEl.disabled = false; }
   }
 
-  // ---------- fallback: guided form on the same engine ----------
-  const Q = [
-    { k: "price", q: "What's the purchase price you have in mind? A rough number is fine.", parse: num },
-    { k: "downPayment", q: "How much will you put down? Dollars or a percent both work.", parse: (t, p) => pct(t, p.price) },
-    { k: "fico", q: "What's your credit score, roughly?", parse: num },
-    { k: "income", q: "What's your annual household income before taxes?", parse: num },
-    { k: "monthlyDebts", q: "About how much do you pay per month on other debts (cars, cards, student loans)? Say 0 if none.", parse: num },
-    { k: "flags", q: "Last one. Are you a veteran, self-employed, or buying an investment property? Say any that apply, or 'none'.", parse: (t) => ({ veteran: /vet|military|service/i.test(t), selfEmployed: /self|1099|business/i.test(t), investor: /invest|rental/i.test(t) }) },
-  ];
-  let qi = 0;
-  function formMode() {
-    qi = 0; state.profile = {};
-    bubble("ai", "Hi, I'm Kind Guide. Six quick questions and I'll show you which Kind loans could fit and what they might cost each month.");
-    bubble("ai", Q[0].q); setQuick(["$1,100,000", "$850,000", "$650,000"]);
+  // ---------- no model reachable: say so, never pretend ----------
+  function offline() {
+    bubble("ai", "Kind Guide is offline right now, so I can't run your numbers. A Kind loan officer can: call (714) 844-1000, Monday to Friday, 8am to 5pm PT, or request a quick rate quote and we'll get back to you.");
+    quickEl.innerHTML = "";
+    addCard(`<div class="card"><div class="row"><a class="btn btn-navy btn-sm" href="#/rate-quote">Quick rate quote</a><a class="btn btn-paper btn-sm" href="tel:17148441000">Call (714) 844-1000</a><a class="btn btn-paper btn-sm" href="#/calculator">Mortgage calculator</a></div></div>`);
+    inputEl.disabled = true; inputEl.placeholder = "Assistant offline"; sendEl.disabled = true;
   }
-  function formAnswer(text) {
-    const q = Q[qi]; const v = q.parse(text, state.profile);
-    if (v === null || (typeof v === "number" && isNaN(v))) { bubble("ai", "Sorry, I didn't catch a number there. " + q.q); return; }
-    if (q.k === "flags") Object.assign(state.profile, v); else state.profile[q.k] = v;
-    qi++;
-    if (qi < Q.length) { bubble("ai", Q[qi].q); setQuick(quickFor(Q[qi].k)); return; }
-    const r = E.match({ firstTime: true, ...state.profile });
-    const best = r.programs.filter(p => p.ok);
-    bubble("ai", best.length ? `Here's what I found. ${best[0].name} looks like the strongest fit at about ${fmt(best[0].totalMonthly)} a month, all in. ${best.length > 1 ? best[1].name + " could work too." : ""} These are estimates, not an offer.` : "Nothing fits cleanly on these numbers yet, but a Kind loan officer can usually find a path. Here is why each program is off the table right now.");
-    renderCards(r);
-    setQuick(["Talk to a loan officer", "Start over"]);
-    quickEl.onclick = (e) => { const b = e.target.closest("button"); if (!b) return; if (/start/i.test(b.textContent)) { chatEl.innerHTML = ""; formMode(); quickEl.onclick = (e2) => { const b2 = e2.target.closest("button"); if (b2) send(b2.textContent); }; } else { bubble("me", b.textContent); renderHandoff(`Buyer looking at ${fmt(state.profile.price)} with ${fmt(state.profile.downPayment)} down, credit around ${state.profile.fico}, income ${fmt(state.profile.income)}. Best fit: ${best[0] ? best[0].name : "needs review"}.`); } };
-  }
-  function quickFor(k) { return { downPayment: ["10%", "20%", "$100,000"], fico: ["740+", "700", "660", "620"], income: ["$150,000", "$240,000", "$350,000"], monthlyDebts: ["0", "$500", "$1,200"], flags: ["None", "Veteran", "Self-employed", "Investment property"] }[k] || []; }
-  function num(t) { const m = String(t).replace(/,/g, "").match(/(\d+(?:\.\d+)?)\s*(k|m)?/i); if (!m) return null; let n = parseFloat(m[1]); if (/m/i.test(m[2] || "")) n *= 1e6; else if (/k/i.test(m[2] || "")) n *= 1e3; return n; }
-  function pct(t, price) { const m = String(t).match(/(\d+(?:\.\d+)?)\s*%/); if (m && price) return price * parseFloat(m[1]) / 100; return num(t); }
 
   window.KIND_GUIDE = { bind, start };
 })();

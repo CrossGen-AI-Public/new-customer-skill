@@ -16,15 +16,18 @@ for compliance reasons. Reuse it in every industry.
    - After a result: top one or two options, the headline monthly/total figure, one reason, then the next step.
    - Every figure is an estimate. No approved/qualified/guaranteed. The human makes every decision.
    - Off-topic: one sentence, steer back. When ready: `handoff` with a two-sentence summary for the human.
-3. Three run modes, chosen at load in `guide.js`, identical numbers in all three:
-   - **artifact**: `claude.use("sample")` with tools executed in the page.
-   - **api**: `POST /api/guide {messages}` to `server.js`, tools executed on the server; response `{text, toolResults:[{name,args,result}]}` rendered by the page.
-   - **form**: six questions, same engine, when neither is available (GitHub Pages).
+3. Two run modes, chosen at load in `guide.js`, identical numbers in both. No scripted fallback.
+   - **artifact**: `claude.use("sample")` with tools executed in the page (claude.ai viewers).
+   - **api**: `POST /api/guide {messages}` to `server.js` (same origin) or the public endpoint named in
+     the `kind-guide-api` meta tag; tools run on the server; response `{text, toolResults}` rendered by the page.
+   - **offline**: if neither answers, the assistant says so, disables the input, and shows the human
+     paths (phone, quote form, calculator). It never answers with canned text. The rule from
+     2026-09-02: a chatbot that pretends to be AI is worse than none.
 4. `server.js`: zero dependencies, three backends in priority order:
    - `GUIDE_AI_URL` + `GUIDE_AI_KEY` + `GUIDE_AI_MODEL`: any OpenAI-compatible chat-completions endpoint with function calling. This is what the crossgen-ai site uses (a hosted vLLM Qwen 3.6 35B at llm.agents-r-here.ai; the values live in the crossgen-site-api container env on the droplet and in `~/.config/<name>.env` on sparky). About 2-5s a turn. Thinking is disabled per request and tool inputs are validated server-side because the model sometimes emits empty arguments.
    - `ANTHROPIC_API_KEY`: Messages API with native tool use. About 3s.
    - neither: `claude -p --output-format json` on the host's Claude login with a JSON `{"say","call"}` protocol. About 20s. Fine for a demo, not for a public site.
-   The default for a CrossGen demo is the first one: same model as our own site, one config file, no per-token bill.
+   The default for every CrossGen demo is the first one: the same endpoint and model as crossgen-ai.com, configured by three lines copied on the boxes (sparky `~/.config/<name>.env`, droplet `/srv/apps/<name>/.env`). The other two exist for hosts without those credentials. Whatever the backend, the model must be real; the page badge reads "AI assistant · estimates only" and nothing else.
 
 ## Guardrails by industry (put them on every screen, not in a footer)
 - Any regulated advice (money, health, law, insurance): disclose AI up front; label every number an estimate, not an offer or diagnosis; licence or registration numbers visible wherever the assistant solicits; a human path on every screen; the licensed person makes the decision.
