@@ -1,10 +1,10 @@
 #!/usr/bin/env node
-// CLIENT mock-up server. Zero dependencies, Node 18+.
+// Kind Lending mock-up server. Zero dependencies, Node 18+.
 //   GET  /               the built site (dist/index.html)
 //   GET  /health         "ok"
 //   GET  /api/guide/health   {backend:"api"|"claude-cli"}
 //   POST /api/guide      {messages:[{role,content}]} -> {text, toolResults:[{name,args,result}]}
-// The assistant's math runs HERE (site/engine.js). The model only decides what to say and which
+// Kind Guide's math runs HERE (site/engine.js). The model only decides what to say and which
 // engine function to call. Backend: Anthropic Messages API when ANTHROPIC_API_KEY is set,
 // otherwise the local `claude -p` CLI (sparky's own Claude login).
 "use strict";
@@ -23,6 +23,11 @@ const MAX_PARALLEL = +(process.env.GUIDE_MAX_PARALLEL || 3);
 const MAX_QUEUE = +(process.env.GUIDE_MAX_QUEUE || 20);
 const ALLOW_ORIGINS = (process.env.GUIDE_ALLOW_ORIGINS || "https://crossgen-ai-public.github.io,https://claude.ai,https://*.claude.ai,https://*.claudeusercontent.com,https://*.crossgen-ai.com").split(",").map(s => s.trim()).filter(Boolean);
 const originOk = (o) => !!o && ALLOW_ORIGINS.some(a => a === "*" || a === o || (a.includes("*") && new RegExp("^" + a.replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/\*/g, "[^/]*") + "$").test(o)));
+// Per-IP rate limit. Concurrency alone does not bound sustained rate, and /api/guide is public.
+// x-forwarded-for is trustworthy here: the container publishes no host port, so Caddy is the sole ingress.
+const RATE_PER_MIN = +(process.env.GUIDE_RATE_PER_MIN || 10);
+const hits = new Map();
+function rateOk(ip) { const now = Date.now(); let h = hits.get(ip); if (!h || now > h.resetAt) { h = { n: 0, resetAt: now + 60000 }; hits.set(ip, h); } if (hits.size > 5000) for (const [k, v] of hits) if (now > v.resetAt) hits.delete(k); return ++h.n <= RATE_PER_MIN; }
 const DIST = path.join(__dirname, "dist", "index.html");
 
 // ---------- the assistant's brain lives in site/brain.js: {SYSTEM, TOOLS, runTool} ----------
@@ -83,25 +88,22 @@ function cli(prompt) {
 }
 function extractJSON(s) { const m = s.match(/\{[\s\S]*\}/); if (!m) return null; try { return JSON.parse(m[0]); } catch { return null; } }
 async function viaCli(messages) {
-  const release = await slot();
-  try {
-    const toolResults = []; const transcript = messages.map(m => `${m.role === "user" ? "Visitor" : "Kind Guide"}: ${m.content}`);
-    const toolDoc = TOOLS.map(t => `- ${t.name}(${Object.keys(t.input_schema.properties).join(", ")}): ${t.description} Required: ${t.input_schema.required.join(", ")}.`).join("\n");
-    for (let round = 0; round < 3; round++) {
-      const prompt = `${SYSTEM()}\n\nYou have these tools. To use one, put it in "call". You will receive the result and be asked again.\n${toolDoc}\n\nRespond with ONLY a JSON object, no prose outside it:\n{"say": "<what Kind Guide says to the visitor now; empty string if you are calling a tool and will speak after the result>", "call": {"name": "<tool name>", "args": {…}} or null}\n\nConversation so far:\n${transcript.join("\n")}\n\nKind Guide:`;
-      const raw = await cli(prompt);
-      const j = extractJSON(raw) || { say: raw.trim(), call: null };
-      if (j.call && j.call.name) {
-        const r = runTool(j.call.name, j.call.args || {});
-        if (r.forPage) toolResults.push({ name: j.call.name, args: j.call.args, result: r.forPage });
-        transcript.push(`Kind Guide (tool ${j.call.name} result): ${JSON.stringify(r.forModel)}`);
-        if (j.say) transcript.push(`Kind Guide: ${j.say}`);
-        continue;
-      }
-      return { text: String(j.say || "").trim(), toolResults };
+  const toolResults = []; const transcript = messages.map(m => `${m.role === "user" ? "Visitor" : "Kind Guide"}: ${m.content}`);
+  const toolDoc = TOOLS.map(t => `- ${t.name}(${Object.keys(t.input_schema.properties).join(", ")}): ${t.description} Required: ${t.input_schema.required.join(", ")}.`).join("\n");
+  for (let round = 0; round < 3; round++) {
+    const prompt = `${SYSTEM()}\n\nYou have these tools. To use one, put it in "call". You will receive the result and be asked again.\n${toolDoc}\n\nRespond with ONLY a JSON object, no prose outside it:\n{"say": "<what Kind Guide says to the visitor now; empty string if you are calling a tool and will speak after the result>", "call": {"name": "<tool name>", "args": {…}} or null}\n\nConversation so far:\n${transcript.join("\n")}\n\nKind Guide:`;
+    const raw = await cli(prompt);
+    const j = extractJSON(raw) || { say: raw.trim(), call: null };
+    if (j.call && j.call.name) {
+      const r = runTool(j.call.name, j.call.args || {});
+      if (r.forPage) toolResults.push({ name: j.call.name, args: j.call.args, result: r.forPage });
+      transcript.push(`Kind Guide (tool ${j.call.name} result): ${JSON.stringify(r.forModel)}`);
+      if (j.say) transcript.push(`Kind Guide: ${j.say}`);
+      continue;
     }
-    return { text: "Here are your numbers. A Kind loan officer can take it from here.", toolResults };
-  } finally { release(); }
+    return { text: String(j.say || "").trim(), toolResults };
+  }
+  return { text: "Here are your numbers. A Kind loan officer can take it from here.", toolResults };
 }
 
 // ---------- http ----------
@@ -116,10 +118,13 @@ const server = http.createServer(async (req, res) => {
     if (url.pathname === "/health") { res.writeHead(200, { "content-type": "text/plain" }); return res.end("ok"); }
     if (url.pathname === "/api/guide/health") return json(res, 200, OAI_URL ? { backend: "openai-compatible", model: OAI_MODEL, host: OAI_URL.replace(/^https?:\/\//, "").split("/")[0] } : { backend: API_KEY ? "api" : "claude-cli", model: API_KEY ? API_MODEL : CLI_MODEL });
     if (url.pathname === "/api/guide" && req.method === "POST") {
+      const ip = (req.headers["x-forwarded-for"] || "").split(",")[0].trim() || req.socket.remoteAddress || "";
+      if (!rateOk(ip)) return json(res, 429, { error: "too many requests, try again in a minute" });
       let b; try { b = JSON.parse(await body(req) || "{}"); } catch { return json(res, 400, { error: "body must be JSON" }); }
       const messages = (b.messages || []).filter(m => m && (m.role === "user" || m.role === "assistant") && typeof m.content === "string").map(m => ({ role: m.role, content: m.content.slice(0, 2000) })).slice(-24);
       if (!messages.length || messages[messages.length - 1].role !== "user") return json(res, 400, { error: "messages must end with a user turn" });
-      const out = OAI_URL ? await viaOpenAI(messages) : API_KEY ? await viaApi(messages) : await viaCli(messages);
+      const release = await slot(); // gates ALL backends: the model paths spend a real key on a public endpoint
+      let out; try { out = OAI_URL ? await viaOpenAI(messages) : API_KEY ? await viaApi(messages) : await viaCli(messages); } finally { release(); }
       return json(res, 200, out);
     }
     if (url.pathname === "/" || url.pathname === "/index.html") { res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" }); return fs.createReadStream(DIST).pipe(res); }

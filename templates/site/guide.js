@@ -11,7 +11,7 @@
   const API_BASE = () => (window.KIND_GUIDE_API || (document.querySelector('meta[name="kind-guide-api"]') || {}).content || "").replace(/\/$/, "");
 
   const SYSTEM = () => `You are Kind Guide, the AI home-loan guide on the Kind Lending website (Irvine, CA, NMLS #3925). Kind's tagline: "faster, easier, and, well, kinder."
-Voice: warm, plain English, no bank-speak, short messages (max 3 short sentences or a short list). One question at a time. Never use emojis or em dashes.
+Voice: warm, plain English, no bank-speak, short messages (max 3 short sentences or a short list). One question at a time. Plain text only: no markdown, no asterisks, no headings; use short lines. Never use emojis or em dashes.
 You help a visitor figure out (1) which Kind loan programs could fit, (2) roughly what a home would cost per month, (3) roughly how much home they can afford, then (4) connect them with a Kind loan officer.
 Programs Kind offers: Conventional, FHA, VA, Jumbo, USDA, Non-QM (bank statement, DSCR), plus National DPA, GSFA, CalHFA, buydowns, HECM reverse, FHA 203(k).
 RULES:
@@ -60,7 +60,9 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
     start();
   }
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  function bubble(kind, text) { const d = document.createElement("div"); d.className = "msg " + kind; d.textContent = text; chatEl.appendChild(d); pinToEnd(); return d; }
+  // Models sometimes answer in markdown; the chat renders plain text, so tidy the common bits.
+  const plain = (t) => String(t || "").replace(/\*\*(.+?)\*\*/g, "$1").replace(/__(.+?)__/g, "$1").replace(/^\s*[*-]\s+/gm, "• ").replace(/^\s*#{1,6}\s+/gm, "").replace(/`([^`]+)`/g, "$1").replace(/\n{3,}/g, "\n\n").trim();
+  function bubble(kind, text) { const d = document.createElement("div"); d.className = "msg " + kind; d.textContent = kind === "ai" ? plain(text) : text; chatEl.appendChild(d); pinToEnd(); return d; }
   function addCard(html) { const d = document.createElement("div"); d.innerHTML = html; while (d.firstChild) chatEl.appendChild(d.firstChild); pinToEnd(); }
   function renderCards(r) {
     state.lastResult = r;
@@ -111,7 +113,7 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
       let reply = "";
       if (state.mode === "artifact") {
         const input = [{ role: "user", content: SYSTEM() + "\n\n(Conversation begins. Greet only once; the greeting already happened.)" }, { role: "assistant", content: "Understood." }, ...state.turns];
-        const res = await state.sample(input, { tools, cache: false, modelTier: "default", onText: ({ text }) => { ai.textContent = text; pinToEnd(); } });
+        const res = await state.sample(input, { tools, cache: false, modelTier: "default", onText: ({ text }) => { ai.textContent = plain(text); pinToEnd(); } });
         reply = res.text || ai.textContent;
       } else {
         const res = await fetch(state.api + "/api/guide", { method: "POST", mode: "cors", headers: { "content-type": "application/json" }, body: JSON.stringify({ messages: state.turns }) });
@@ -121,7 +123,7 @@ Today's indicative rates (Freddie Mac PMMS, week of ${E.RATES.asOf}): 30yr fixed
         reply = j.text || "";
         if (!reply && (j.toolResults || []).length) reply = "Here's what I found.";
       }
-      ai.textContent = reply; chatEl.appendChild(ai); pinToEnd();
+      ai.textContent = plain(reply); chatEl.appendChild(ai); pinToEnd();
       state.turns.push({ role: "assistant", content: reply });
       if (state.turns.length > 24) state.turns = state.turns.slice(-24);
       if (state.lastResult && !/loan officer|handoff/i.test(reply)) setQuick(["Talk to a loan officer", "What if I put 20% down?", "Show me FHA vs conventional"]);
