@@ -1,0 +1,39 @@
+# crossgen-handoff.yml — registers this repo with the CrossGen review-and-deploy
+# bot on sparky (ADR-0001 stages 5–8; routing per ADR-0002). Human SSOT; the bot
+# reads its mirror at ~/.crossgen-handoff/repos.d/APPNAME.env.
+
+repo: CrossGen-AI-Public/REPO
+
+# Informational since ADR-0012: green ⇒ auto-merge ⇒ refresh the production
+# checkout ⇒ redeploy, no human in the path. This is a client demo with no
+# customer data and no money movement, so plain "none".
+permissions: none
+
+# Self-contained: syntax, engine math, build, and a server smoke test. No
+# network, no secrets. Node 18+ only.
+test_cmd: "bash scripts/test.sh"
+
+# Runs IN the production checkout after the bot refreshes it to origin/main:
+# rebuilds dist/index.html and restarts the user service that serves it on
+# sparky's Tailscale address (port PORT). Idempotent.
+deploy_cmd: "bash scripts/deploy.sh"
+
+# Internal demo: Tailscale-only on sparky. Move to the droplet if it ever goes public.
+deploy_target: sparky
+
+sparky_path: ~/CrossGen/apps/APPNAME
+
+# Audit-flagged paths (ADR-0012). The server is the only code that talks to a
+# model and the only thing exposed on the tailnet; the engine is the money
+# math every the AI assistant answer rests on; the deploy script runs on prod.
+danger_globs:
+  - "server.js"
+  - "site/engine.js"
+  - "scripts/deploy.sh"
+  - "ops/**"
+
+hard_globs:
+  - "site/engine.js"
+  - "scripts/deploy.sh"
+
+escalation_contact: "ESCALATION_CONTACT"

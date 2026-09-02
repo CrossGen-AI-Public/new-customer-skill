@@ -1,0 +1,27 @@
+[Unit]
+Description=CLIENT mock-up (site + the assistant proxy) on :PORT
+Documentation=https://github.com/CrossGen-AI-Public/REPO
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# %h = the user's home dir, so no host-specific path is baked in.
+WorkingDirectory=%h/CrossGen/apps/APPNAME
+ExecStart=%h/.nvm/versions/node/v24.11.1/bin/node server.js
+Restart=on-failure
+RestartSec=5
+Environment=PATH=%h/.nvm/versions/node/v24.11.1/bin:%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+Environment=NODE_ENV=production
+Environment=PORT=PORT
+Environment=HOST=0.0.0.0
+# the assistant backend, in order: GUIDE_AI_URL/KEY/MODEL (the OpenAI-compatible endpoint the crossgen-ai
+# site uses, from the EnvironmentFile below), else ANTHROPIC_API_KEY, else `claude -p` on this login.
+Environment=CLAUDE_BIN=%h/.local/bin/claude
+Environment=GUIDE_CLI_MODEL=sonnet
+EnvironmentFile=-%h/.config/APPNAME.env
+StandardOutput=append:%h/CrossGen/apps/APPNAME/server.log
+StandardError=append:%h/CrossGen/apps/APPNAME/server.log
+
+[Install]
+WantedBy=default.target

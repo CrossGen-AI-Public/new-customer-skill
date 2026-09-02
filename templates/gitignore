@@ -1,0 +1,31 @@
+# repo-specific
+scrape/pages/*.html
+scrape/bulk/
+scrape/assets/*.css
+research/mercury/*.woff2
+research/mercury/index.html
+.DS_Store
+server.log
+*.log
+
+# CrossGen standard ignores (ADR-0001): screenshots and agent-run artifacts
+# stay out of app repos — they belong in ~/CrossGen/reports/.
+*.png
+*.jpg
+*.jpeg
+harness-run/
+.playwright-mcp/
+test-results/
+playwright-report/
+node_modules/
+target/
+__pycache__/
+.env
+.env.*
+!.env.example
+# carve-outs: Kind's real brand assets and the design references are research, not screenshots
+!scrape/assets/**
+!research/reference/**
+
+# keep Kind's 660 KB stylesheet out even with the carve-out above
+scrape/assets/*.css
