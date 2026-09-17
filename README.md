@@ -22,6 +22,6 @@ Without `--deploy` the run ends with the published artifact, the local site, and
 
 ## Layout
 - `SKILL.md`: the five-phase procedure.
-- `scripts/`: crawl (sitemap, core pages to text, brand assets), Dribbble reference pull for the derived industry, headless WebGL screenshots, and the gate: `gate.sh` runs `links.sh` (dead links, placeholders, missing anchors), `console.sh` (console and THREE errors), `sweep.sh` (overflow 320-1300), screenshots, and the slop scanner.
+- `scripts/`: crawl (sitemap, core pages to text, brand assets), Dribbble reference pull for the derived industry, headless WebGL screenshots, and the gate: `gate.sh` runs `links.sh` (dead links, placeholders, missing anchors), `console.sh` (console and THREE errors), `sweep.sh` (overflow 320-1300), `resize.sh` (live width changes 1300-320-1300 with no reload), screenshots, and the slop scanner.
 - `references/`: the site-spike copy and design tells (`site-spike/`), the quality bar (the ContentHub landing, with its screenshots and hero.js under `examples/`), the three.js hero method, craft checklist (from mercury.com's CSS), Dribbble reference method, the engine-computes-model-talks AI pattern with guardrails by industry, research prompts, the sparky and droplet deploy runbook.
 - `templates/`: server with three model backends (OpenAI-compatible, Anthropic, claude -p), three-mode assistant, mascot, tests, deploy scripts, service unit, handoff manifest, and Kind's real files as worked examples.

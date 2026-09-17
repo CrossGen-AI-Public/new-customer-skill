@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # The whole test gate in one command. Nothing ships with a red line here.
 #   gate.sh <project-dir> "<route1> <route2> ..." [https://deployed-url]
-# Runs: engine tests, dead links, console errors, overflow sweep at 320-1300, WebGL screenshots of
+# Runs: engine tests, dead links, console errors, overflow sweep at 320-1300, live resize 1300-320-1300, WebGL screenshots of
 # every route at 1440 and 500, the slop scan on the built HTML. Prints one PASS/FAIL table.
 set -uo pipefail
 P="${1:?project dir}"; ROUTES="${2:-}"; URL="${3:-}"
@@ -13,6 +13,7 @@ run() { local name="$1"; shift; echo; echo "===== $name"; if "$@" > "$OUT/$name.
 run links bash "$S/links.sh" "$DIST" "$ROUTES" "$OUT/links-report.md"
 run console bash "$S/console.sh" "$DIST" "$ROUTES"
 run overflow bash "$S/sweep.sh" "$DIST" "$ROUTES"
+run resize bash "$S/resize.sh" "$DIST" "$ROUTES"
 shots() { local ok=0; for r in "" $ROUTES; do for sz in 1440x1600 500x1400; do
   n="${r:-home}-${sz%x*}"; bash "$S/shot.sh" "$DIST${r:+#/$r}" "$OUT/shots/$n.png" "$sz" >/dev/null || ok=1; done; done
   ls "$OUT/shots" | wc -l; return $ok; }

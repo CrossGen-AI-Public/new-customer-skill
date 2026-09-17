@@ -55,6 +55,7 @@ The order below is the default skeleton. The lead Dribbble shot from Phase 3 ove
 - `scripts/gate.sh <project> "<routes>" [deployed-url]` runs everything below and prints one PASS/FAIL table. Every row must pass.
 - `scripts/links.sh` renders every route and checks every href/src: external URLs answer, hash routes exist, anchors exist, no placeholders. Run it again against the deployed URL.
 - `scripts/console.sh` loads every route at 1440 and 500 with WebGL on and fails on any console error, uncaught exception, failed resource or THREE message.
+- `scripts/resize.sh dist/index.html "<routes>"` loads each route once and drags the iframe 1300-1024-768-430-320 and back up without reloading; fails on overflow, elements outside the viewport, or a `canvas#scene` that did not refit. This is the proof the page adjusts to window width changes, not just that it loads at fixed widths.
 - `scripts/sweep.sh dist/index.html "<routes>"` runs every route at 320 to 1300 inside an iframe (Chrome's own floor is 500px) and fails on any horizontal overflow. Zero is the bar; Kind needed grid minimums capped at the container, buttons allowed to wrap under 420px, mega menus capped at the viewport and right-aligned near the edge, and `overflow-x: clip` on html as well as body (iOS ignores body-only).
 - `scripts/chat-drive.js` types two real questions into the deployed page over CDP and screenshots the answers. Read them: the engine must have been called and the reply must be plain text with the engine's numbers.
 - `slop_scan.py` from site-spike, fix or record exceptions.

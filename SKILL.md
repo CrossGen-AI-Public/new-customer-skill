@@ -111,7 +111,11 @@ Copy `templates/` into the project and fill them for this client, in this order:
 2. `site/engine.js`: this client's domain math, tested with node before anything renders.
 3. `site/index.html`: tokens, then the shell: header with mega menus built from their nav, mobile
    sheet, footer with their full legal line and every real external link. One `<title>`, one `<h1>`
-   per page. The `kind-guide-api` meta tag becomes `<name>.crossgen-ai.com`. The hero section holds a
+   per page. The whole layout is fluid from 320 to 1440 and up: `clamp()` type, `minmax(0, 1fr)` grids,
+   `max-width: 100%` on every media and card, no fixed pixel widths on containers, breakpoints as
+   `@media` rules so a window dragged from desktop to phone width re-lays out live with no reload.
+   Anything that measures the window (hero canvas, mega menus, carousels) listens with
+   `ResizeObserver` or `matchMedia` and refits, never reads `innerWidth` once at load. The `kind-guide-api` meta tag becomes `<name>.crossgen-ai.com`. The hero section holds a
    `<canvas id="scene">` over a finished CSS fallback, and loads three r160 UMD before `hero.js`.
 4. `site/hero.js`: the winning concept, built to `references/three-hero.md` §2 (two budgets, custom
    shaders, reduced-motion still, pause off-screen, quiet fallback). Read
@@ -134,6 +138,8 @@ Copy `templates/` into the project and fill them for this client, in this order:
 - `scripts/console.sh`: every route at 1440 and 500 with WebGL on. Zero console errors, zero THREE
   messages, zero failed resources.
 - `scripts/sweep.sh`: every route from 320 to 1300 inside the iframe runner. Zero overflow.
+- `scripts/resize.sh`: every route loaded once, then the viewport dragged 1300 to 320 and back with no
+  reload. Zero overflow at any step, nothing left outside the viewport, hero canvas refit every time.
 - Screenshots of every route at 1440 and 500 with the hero rendered, plus 390 through the runner.
 - `slop_scan.py` findings fixed or recorded as deliberate exceptions.
 
