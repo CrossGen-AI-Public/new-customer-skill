@@ -38,19 +38,23 @@ Apply these to the prospect's own brand. None of them are a look; all of them ar
 - `prefers-reduced-motion`: everything static, mascot sits.
 
 ## Page architecture (homepage)
+The order below is the default skeleton. The lead Dribbble shot from Phase 3 overrides it: follow that shot's section order and hero composition, and use this list to make sure nothing the research supports is missing. Section 1 is always the three.js hero (`references/three-hero.md`).
 1. Thesis hero: one line that is theirs, one action, one proof strip.
 2. "Everything in one place": four cards, each ending in a link.
 3. Testimonials: three, verbatim, with a portrait or initial.
 4. Alternating product rows with UI mocks; the AI feature first.
 5. Founder quote with source.
-6. Loan/product ledger or equivalent catalogue.
+6. Catalogue of what they sell (products, services, plans, programmes), as a ledger with real names and figures.
 7. Stats on dark, hairline dividers, tabular numerals.
-8. Trust: licences, insurance, who answers the phone.
+8. Trust: whatever this industry's proof is (licences, certifications, ratings, years, memberships), who answers the phone.
 9. Press: four cards, source in caps, headline in brand.
 10. Final CTA on the primary color with three routes.
-11. Footer: five columns, every external portal, the full legal line, the industry seal.
+11. Footer: five columns, every external portal, the full legal line, any seal or badge their industry shows.
 
 ## The gate
+- `scripts/gate.sh <project> "<routes>" [deployed-url]` runs everything below and prints one PASS/FAIL table. Every row must pass.
+- `scripts/links.sh` renders every route and checks every href/src: external URLs answer, hash routes exist, anchors exist, no placeholders. Run it again against the deployed URL.
+- `scripts/console.sh` loads every route at 1440 and 500 with WebGL on and fails on any console error, uncaught exception, failed resource or THREE message.
 - `scripts/sweep.sh dist/index.html "<routes>"` runs every route at 320 to 1300 inside an iframe (Chrome's own floor is 500px) and fails on any horizontal overflow. Zero is the bar; Kind needed grid minimums capped at the container, buttons allowed to wrap under 420px, mega menus capped at the viewport and right-aligned near the edge, and `overflow-x: clip` on html as well as body (iOS ignores body-only).
 - `scripts/chat-drive.js` types two real questions into the deployed page over CDP and screenshots the answers. Read them: the engine must have been called and the reply must be plain text with the engine's numbers.
 - `slop_scan.py` from site-spike, fix or record exceptions.

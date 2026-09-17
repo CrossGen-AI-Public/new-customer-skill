@@ -6,7 +6,7 @@
 # lists the top shots (title + URL), and downloads their full-size images so the agent can look at them.
 # Output: <out>/results-*.png, <out>/shots.md, <out>/img/*.png|jpg
 set -euo pipefail
-Q="${1:?industry, e.g. mortgage}"; OUT="${2:?out dir}"; N="${3:-8}"
+Q="${1:?industry term from research/industry.md, e.g. \"education\"}"; OUT="${2:?out dir}"; N="${3:-8}"
 CH="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
 [ -x "$CH" ] || CH="$(command -v google-chrome || command -v chromium || command -v chromium-browser || true)"
 [ -n "$CH" ] || { echo "no chrome found; set CHROME=" >&2; exit 1; }
@@ -14,7 +14,7 @@ UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, l
 mkdir -p "$OUT/img"; : > "$OUT/shots.md"
 slug() { echo "$1" | tr 'A-Z' 'a-z' | sed -E 's/[^a-z0-9]+/-/g; s/^-|-$//g'; }
 i=0
-for term in "$Q website" "$Q landing page" "$Q web design"; do
+for term in "$Q landing page" "$Q website" "$Q web design" "$Q hero section"; do
   s="$(slug "$term")"; url="https://dribbble.com/search/$s"
   echo "== $url"
   "$CH" --headless=new --disable-gpu --hide-scrollbars --window-size=1440,2200 --virtual-time-budget=9000 --user-agent="$UA" --screenshot="$OUT/results-$s.png" "$url" 2>/dev/null || true

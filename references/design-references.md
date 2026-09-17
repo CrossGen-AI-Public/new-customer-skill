@@ -1,14 +1,18 @@
 # Design references from Dribbble
 
+The industry term comes from `research/industry.md`, written after the crawl; never from the skill.
 Dribbble blocks curl and WebFetch but renders in headless Chrome, so `scripts/dribbble.sh "<industry>"
-<out>` drives Chrome through three searches ("<industry> website", "<industry> landing page",
-"<industry> web design") and saves:
+<out>` drives Chrome through four searches ("<industry> landing page", "<industry> website",
+"<industry> web design", "<industry> hero section") and saves:
 - `results-<query>.png`: the results grid, one per search, for a fast visual scan.
 - `shots.md`: title and URL of the top shots per search.
 - `img/`: the full-size images of those shots, downloaded from Dribbble's CDN.
 
 ## How to use them
-1. Read the three results screenshots first. Mark the shots that match the client's positioning
+0. One shot leads. The homepage follows its layout the way the ContentHub landing followed the
+   "Lumina" hillside shot: hero composition, where the copy and floating card sit, section order.
+   Supporting shots only lend section treatments.
+1. Read the results screenshots first. Mark the shots that match the client's positioning
    (premium vs friendly, dense vs airy, photographic vs illustrated). Ignore anything that is a
    dashboard or a mobile app unless the client's product is one.
 2. Open the two or three chosen images with Read and write, per shot, one line each: hero structure,
