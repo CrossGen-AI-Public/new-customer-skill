@@ -12,10 +12,11 @@ Lending run and the ContentHub landing turned into one procedure. Five rules sit
 1. **Nothing is mocked or pretended.** The assistant is always a real model. There is no scripted
    fallback that looks like chat. If no model is reachable, the assistant says it is offline and points
    at a person. Numbers come from an engine you wrote, never from the model.
-2. **Everything derives from this client.** Industry, colors, type, motif, the hero scene, copy, the AI
+2. **Everything derives from this client.** Industry, colors, motif, the hero scene, copy, the AI
    feature, the engine's domain, the design references: each one traces to a file under `research/` or
-   `scrape/` for this client. Nothing is carried from Kind Lending, ContentHub, or any earlier build,
-   and nothing in this skill assumes an industry. The templates are shapes, not content.
+   `scrape/` for this client. Type is the one exception: it is chosen fresh for the kind of company
+   they are, never taken from their current site. Nothing is carried from Kind Lending, ContentHub, or
+   any earlier build, and nothing in this skill assumes an industry. The templates are shapes, not content.
 3. **Real links only.** Every link resolves: external URLs answer, routes exist, anchors exist. Anything
    you cannot verify is left out, not guessed. Demo-only surfaces (forms that do not submit) are labeled
    on screen. `scripts/links.sh` proves it; you do not.
@@ -87,10 +88,14 @@ ratings) visible.
    (source, picture, technique, one motion), reject clichés and anything that resembles an earlier
    run, and build the most exotic survivor. The scene must read as unique to this client and state of
    the art; a landscape with an object on it, particles, a network or a globe fails before it is built.
-3. The palette, the font, the motif come from the client's own site and brand (`scrape/inventory/brand.md`,
-   `research/` evidence). Execute them at the level of detail in `references/craft-checklist.md`.
+3. From the client's own site, take only the logo and the palette (`scrape/inventory/brand.md`,
+   `research/` evidence). Do not take their typeface: `brand.md` lists their font-family declarations so
+   you know what to avoid. Choose the type for the kind of company they are, from the lead shot and
+   `research/industry.md`, and write one sentence on why it fits them. The motif comes from their world
+   (research), not from their current site's decoration. Execute all of it at the level of detail in
+   `references/craft-checklist.md`.
 4. Write the plan as tokens before code: 4-6 named hex values with where each came from, the type family
-   and four weights (a display or serif face for the headline if the lead shot uses one), the radius
+   chosen in step 3 and four weights (a display or serif face for the headline if the lead shot uses one), the radius
    language, the one motion idea, the mascot only if the brand has one.
 5. Run the plan through the site-spike references (`references/site-spike/`, copied from the site-spike skill) and the
    client-derivation audit: for every decision, one sentence "why this, for them". A decision without a

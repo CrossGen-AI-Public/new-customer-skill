@@ -18,7 +18,7 @@ Dribbble blocks curl and WebFetch but renders in headless Chrome, so `scripts/dr
 2. Open the two or three chosen images with Read and write, per shot, one line each: hero structure,
    how product UI is framed, section rhythm, one detail worth stealing (a stat strip, a testimonial
    treatment, a way of showing a process).
-3. Borrow structure and craft only. The palette and the type come from the client's brand. If a shot's
+3. Borrow structure and craft only. The palette comes from the client's brand; the type is chosen fresh for their kind of company, never their current site's font. If a shot's
    colors are what made it attractive, note the effect (contrast, warmth, one accent) and reproduce the
    effect with the client's colors.
 4. Put the shot URLs and the notes in `BRIEF.md` under "Direction" so the honing round can point at them.
